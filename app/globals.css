@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+  --color-background:var(--background);--color-foreground:var(--foreground);
+  --color-card:var(--card);--color-card-foreground:var(--card-foreground);
+  --color-primary:var(--primary);--color-primary-foreground:var(--primary-foreground);
+  --color-muted:var(--muted);--color-muted-foreground:var(--muted-foreground);
+  --color-border:var(--border);--color-input:var(--input);--color-ring:var(--ring);
+  --radius-sm:calc(var(--radius)*.6);--radius-md:calc(var(--radius)*.8);--radius-lg:var(--radius);
+}
+:root{color-scheme:dark;--background:#090909;--foreground:#f5f5f5;--card:#111;--card-foreground:#f5f5f5;--primary:#f5f5f5;--primary-foreground:#090909;--muted:#1c1c1c;--muted-foreground:#a3a3a3;--border:#303030;--input:#303030;--ring:#888;--radius:.75rem}
+@layer base{*{box-sizing:border-box}body{margin:0;background:var(--background);color:var(--foreground);font-family:Arial,Helvetica,sans-serif}}
+.pons-launch-app{min-height:100vh;background:#090909;color:#f5f5f5;padding:24px clamp(16px,4vw,56px) 64px}
+.pons-launch-header{max-width:1200px;margin:0 auto 70px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #292929;padding:12px 0 18px;color:#999;font-size:11px;font-weight:700;letter-spacing:.14em}
+.pons-launch-mark{color:#fff;font-size:17px;letter-spacing:.08em}
+.pons-launch-heading,.pons-launch-workspace{max-width:1200px;margin:0 auto}
+.pons-launch-heading{margin-bottom:34px}
+.pons-launch-heading h1{font-size:clamp(36px,6vw,64px);letter-spacing:-.055em;margin:0 0 10px;font-weight:750}
+.pons-launch-heading p{margin:0;color:#999;line-height:1.6;font-size:14px}
+.pons-launch-workspace{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:24px;align-items:start}
+.pons-launch-form{min-width:0}
+.obrix-launch-card{width:100%;max-width:none!important;margin:0!important;background:#111!important;border:1px solid #292929;border-radius:18px;color:#f5f5f5}
+.obrix-launch-form{padding:clamp(18px,3vw,32px)!important;color:#f5f5f5}
+.obrix-launch-form label{color:#e5e5e5}
+.obrix-launch-form input,.obrix-launch-form textarea{background:#090909!important;color:#fff!important;border:1px solid #333!important}
+.obrix-launch-form input::placeholder,.obrix-launch-form textarea::placeholder{color:#777}
+.obrix-launch-form .text-muted-foreground,.obrix-launch-form .text-zinc-500{color:#999}
+.obrix-button{background:#f5f5f5!important;color:#090909!important;border:1px solid #f5f5f5!important;border-radius:10px!important;font-weight:750}
+.obrix-x-chips{display:flex;flex-wrap:wrap;gap:8px}
+.obrix-x-chips button{border:1px solid #383838;border-radius:8px;padding:8px 14px;color:#ddd;background:#171717}
+.obrix-x-chips button.is-on{background:#f5f5f5;color:#090909;border-color:#f5f5f5}
+.pons-launch-preview{position:sticky;top:24px;background:#111;border:1px solid #292929;border-radius:18px;padding:20px;min-width:0}
+.pons-launch-preview-label{font-size:10px;font-weight:800;letter-spacing:.14em;color:#999;margin-bottom:18px}
+.obrix-x-card{background:#171717;color:#f5f5f5;border:1px solid #333;border-radius:14px;padding:18px}
+.obrix-x-card-head{display:flex;align-items:center;gap:12px}
+.obrix-x-avatar{width:48px;height:48px;border-radius:12px;background:#292929;display:grid;place-items:center;overflow:hidden;flex:none}
+.obrix-x-avatar img{width:100%;height:100%;object-fit:cover}
+.obrix-x-card-title{display:flex;flex-direction:column;gap:4px;min-width:0}
+.obrix-x-card-title strong{font-size:16px;color:#fff}
+.obrix-x-card-title span,.obrix-x-desc,.obrix-x-rows dt,.obrix-x-note-box{color:#aaa}
+.obrix-x-badge{margin-left:auto;font-size:9px;letter-spacing:.1em;color:#aaa}
+.obrix-x-desc{font-size:13px;line-height:1.6;margin:18px 0}
+.obrix-x-rows{margin:0;display:grid;gap:10px}
+.obrix-x-rows div{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #303030;padding-top:10px;font-size:11px}
+.obrix-x-rows dd{margin:0;text-align:right;color:#eee}
+.obrix-x-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.obrix-x-actions a{display:inline-flex;align-items:center;gap:5px;color:#eee;font-size:12px}
+.obrix-x-note-box{font-size:11px;line-height:1.6;background:#101010;border:1px solid #292929;border-radius:10px;padding:12px;margin:16px 0 0}
+@media(max-width:850px){.pons-launch-header{margin-bottom:44px}.pons-launch-workspace{grid-template-columns:1fr}.pons-launch-preview{position:static}.pons-launch-heading{margin-bottom:24px}}
