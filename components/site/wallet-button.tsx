@@ -13,7 +13,7 @@ const WALLET_ICON = (
 )
 
 /** Connect Wallet button for the nav. Uses the same wagmi connectors as the launch form. */
-export default function WalletButton({ block = false }: { block?: boolean }) {
+export default function WalletButton({ block = false, up = false }: { block?: boolean; up?: boolean }) {
   const { address, isConnected, chain } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
@@ -36,10 +36,10 @@ export default function WalletButton({ block = false }: { block?: boolean }) {
   const wrongChain = connected && chain?.id !== robinhoodChain.id
 
   return (
-    <div className="x-wallet" ref={ref}>
+    <div className={`x-wallet${up ? ' up' : ''}`} ref={ref}>
       <button
         type="button"
-        className={block ? 'x-btn big' : 'x-connect'}
+        className={block ? 'x-btn big dark' : 'x-connect'}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
