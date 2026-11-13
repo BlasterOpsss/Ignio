@@ -12,34 +12,34 @@ export default function ConnectWallet() {
 
   if (isConnected) {
     return (
-      <div className="w-full space-y-3">
-        <p className="text-center text-sm text-zinc-400">
-          Connected: <span className="font-mono text-white">{address?.slice(0, 6)}…{address?.slice(-4)}</span>
+      <div className="x-wbtns">
+        <p className="x-wconn">
+          Connected: <code>{address?.slice(0, 6)}…{address?.slice(-4)}</code>
         </p>
         {chain?.id !== robinhoodChain.id && (
           <Button onClick={() => switchChain({ chainId: robinhoodChain.id })} disabled={isSwitching} className="w-full obrix-button">
             {isSwitching ? 'Switching network…' : 'Switch to Robinhood Chain'}
           </Button>
         )}
-        <Button onClick={() => disconnect()} variant="outline" className="w-full border-white/15 bg-white/[0.03] text-white hover:bg-white/[0.07]">
+        <button type="button" className="alt" onClick={() => disconnect()}>
           Disconnect wallet
-        </Button>
+        </button>
       </div>
     )
   }
 
   return (
-    <div className="w-full space-y-2">
-      {connectors.map((connector) => (
-        <Button
+    <div className="x-wbtns">
+      {connectors.map((connector, i) => (
+        <button
           key={connector.uid}
+          type="button"
+          className={i === 0 ? '' : 'alt'}
           onClick={() => connect({ connector })}
           disabled={isPending}
-          className="w-full border border-white/10 bg-white/[0.04] py-5 text-white hover:bg-white/[0.08]"
-          variant="outline"
         >
           {isPending ? 'Connecting…' : `Connect ${connector.name}`}
-        </Button>
+        </button>
       ))}
     </div>
   )

@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useAccount, useReadContract, useSwitchChain } from 'wagmi'
 import { parseAbi } from 'viem'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -32,7 +31,7 @@ interface FormState {
 
 interface LaunchFormProps {
   onChange?: (formData: FormState) => void
-  initial?: { tokenName?: string; tokenSymbol?: string; description?: string }
+  initial?: { tokenName?: string; tokenSymbol?: string; description?: string; xLink?: string; telegram?: string; website?: string; creatorTaxPct?: string }
 }
 
 export function LaunchForm({ onChange, initial }: LaunchFormProps) {
@@ -47,11 +46,11 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
     tokenName: initial?.tokenName ?? '',
     tokenSymbol: initial?.tokenSymbol ?? '',
     description: initial?.description ?? '',
-    xLink: '',
-    telegram: '',
-    website: '',
+    xLink: initial?.xLink ?? '',
+    telegram: initial?.telegram ?? '',
+    website: initial?.website ?? '',
     feeReceiver: address || '',
-    creatorTaxPct: '0',
+    creatorTaxPct: initial?.creatorTaxPct ?? '0',
   })
 
   const [submitMessage, setSubmitMessage] = useState('')
@@ -186,52 +185,63 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
   }
 
   return (
-    <Card className="obrix-launch-card w-full max-w-2xl mx-auto">
-      <form onSubmit={handleSubmit} className="obrix-launch-form p-6 sm:p-8 space-y-6">
-        {/* Token Image */}
-        <div className="space-y-3">
-          <Label className="text-base font-semibold">Token Image</Label>
-          <ImageUploader
-            onImageSelect={handleImageSelect}
-            preview={formState.tokenImagePreview || undefined}
-          />
-          {uploadStatus && <p className="text-xs">{uploadStatus}</p>}
-        </div>
+    <form id="launch-form" onSubmit={handleSubmit} className="x-lform">
+      {/* Token Image */}
+      <section className="x-fsec x-fs-image">
+        <h3>Token image</h3>
+        <p className="sub">Shown on Explore and on your token page.</p>
+        <ImageUploader
+          onImageSelect={handleImageSelect}
+          preview={formState.tokenImagePreview || undefined}
+        />
+        {uploadStatus && <p className="upl">{uploadStatus}</p>}
+      </section>
 
-        {/* Token Name & Symbol */}
-        <div className="space-y-2">
-          <Label htmlFor="tokenName" className="text-sm font-medium">Token Name</Label>
-          <Input id="tokenName" placeholder="Enter token name" value={formState.tokenName} onChange={handleInputChange('tokenName')} />
+      {/* Name, symbol, description */}
+      <section className="x-fsec x-fs-details">
+        <h3>Details</h3>
+        <p className="sub">Name it, give it a ticker, tell people why it matters.</p>
+        <div className="two">
+          <div className="field">
+            <Label htmlFor="tokenName">Token Name</Label>
+            <Input id="tokenName" placeholder="Enter token name" value={formState.tokenName} onChange={handleInputChange('tokenName')} />
+          </div>
+          <div className="field">
+            <Label htmlFor="tokenSymbol">Token Symbol</Label>
+            <Input id="tokenSymbol" placeholder="TICKER" value={formState.tokenSymbol} onChange={handleSymbolChange} maxLength={10} className="uppercase" />
+          </div>
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="tokenSymbol" className="text-sm font-medium">Token Symbol</Label>
-          <Input id="tokenSymbol" placeholder="TICKER" value={formState.tokenSymbol} onChange={handleSymbolChange} maxLength={10} className="uppercase" />
-        </div>
-
-        {/* Description, Links, dll */}
-        <div className="space-y-2">
+        <div className="field">
           <Label htmlFor="description">Description</Label>
           <Textarea id="description" placeholder="What makes your token special?" value={formState.description} onChange={handleDescriptionChange} rows={4} />
         </div>
+      </section>
 
-        {/* X, Telegram, Website */}
-        <div className="space-y-2">
+      {/* X, Telegram, Website */}
+      <section className="x-fsec x-fs-links">
+        <h3>Links</h3>
+        <p className="sub">Help holders find you.</p>
+        <div className="field">
           <Label htmlFor="xLink">X Link</Label>
           <Input id="xLink" type="url" placeholder="x.com/username" value={formState.xLink} onChange={handleInputChange('xLink')} />
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="telegram">Telegram (optional)</Label>
-          <Input id="telegram" placeholder="t.me/groupname" value={formState.telegram} onChange={handleInputChange('telegram')} />
+        <div className="two">
+          <div className="field">
+            <Label htmlFor="telegram">Telegram (optional)</Label>
+            <Input id="telegram" placeholder="t.me/groupname" value={formState.telegram} onChange={handleInputChange('telegram')} />
+          </div>
+          <div className="field">
+            <Label htmlFor="website">Website (optional)</Label>
+            <Input id="website" type="url" placeholder="https://yoursite.com" value={formState.website} onChange={handleInputChange('website')} />
+          </div>
         </div>
+      </section>
 
-        <div className="space-y-2">
-          <Label htmlFor="website">Website (optional)</Label>
-          <Input id="website" type="url" placeholder="https://yoursite.com" value={formState.website} onChange={handleInputChange('website')} />
-        </div>
-
-        <div className="space-y-2">
+      {/* Creator fee + fee receiver */}
+      <section className="x-fsec x-fs-fee">
+        <h3>Creator fee</h3>
+        <p className="sub">Paid on every buy and sell. Fixed at launch.</p>
+        <div className="field">
           <Label htmlFor="creatorTax">Creator fee on every trade (%)</Label>
           <div className="obrix-x-chips">
             {['0', '0.5', '1', '2'].map((v) => (
@@ -241,48 +251,46 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
           <Input id="creatorTax" type="text" inputMode="decimal" placeholder="0" value={formState.creatorTaxPct ?? '0'} onChange={(e) => { const ns = { ...formState, creatorTaxPct: e.currentTarget.value.replace(/[^0-9.]/g, '') }; setFormState(ns); onChange?.(ns) }} />
           <p className="text-xs text-zinc-500">Paid to the Fee Receiver on every buy and sell. Fixed at launch, it cannot be changed later.{maxTaxPct !== null ? ` Maximum allowed: ${maxTaxPct}%.` : ''} Pons also charges its own standard trading fee.</p>
         </div>
-
-        {/* Fee Receiver */}
-        <div className="space-y-2">
+        <div className="field">
           <Label htmlFor="feeReceiver">Fee Receiver</Label>
-          <Input 
-            id="feeReceiver" 
-            placeholder="0x..." 
-            value={formState.feeReceiver || address || ''} 
-            onChange={handleInputChange('feeReceiver')} 
+          <Input
+            id="feeReceiver"
+            placeholder="0x..."
+            value={formState.feeReceiver || address || ''}
+            onChange={handleInputChange('feeReceiver')}
           />
           <p className="text-xs text-muted-foreground">Wallet address to receive fees (defaults to connected wallet)</p>
         </div>
+      </section>
 
-        {/* Submit Area */}
-        <div className="space-y-3 pt-4">
-          {!isConnected ? (
-            <ConnectWallet />
-          ) : chainId !== robinhoodChain.id ? (
-            <Button type="button" onClick={() => switchChain({ chainId: robinhoodChain.id })} disabled={isSwitching} className="w-full obrix-button py-6 text-base">
-              {isSwitching ? 'Switching network…' : 'Switch to Robinhood Chain'}
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full obrix-button text-background font-semibold py-6 text-base disabled:opacity-50"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Launching...
-                </>
-              ) : (
-                'Deploy on Pons V2'
-              )}
-            </Button>
-          )}
+      {/* Submit Area */}
+      <div className="x-fs-submit">
+        {!isConnected ? (
+          <ConnectWallet />
+        ) : chainId !== robinhoodChain.id ? (
+          <Button type="button" onClick={() => switchChain({ chainId: robinhoodChain.id })} disabled={isSwitching} className="w-full obrix-button py-6 text-base">
+            {isSwitching ? 'Switching network…' : 'Switch to Robinhood Chain'}
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full obrix-button text-background font-semibold py-6 text-base disabled:opacity-50"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Launching...
+              </>
+            ) : (
+              'Deploy on Pons V2'
+            )}
+          </Button>
+        )}
 
-          {submitMessage && <div className="text-center text-sm text-amber-300">{submitMessage}</div>}
-          <TransactionStatus status={isLoading || isConfirming ? 'loading' : isConfirmed ? 'success' : error || receiptError ? 'error' : 'idle'} txHash={txHash || undefined} message={error || (receiptError instanceof Error ? receiptError.message : undefined)} />
-        </div>
-      </form>
-    </Card>
+        {submitMessage && <div className="x-note">{submitMessage}</div>}
+        <TransactionStatus status={isLoading || isConfirming ? 'loading' : isConfirmed ? 'success' : error || receiptError ? 'error' : 'idle'} txHash={txHash || undefined} message={error || (receiptError instanceof Error ? receiptError.message : undefined)} />
+      </div>
+    </form>
   )
 }
