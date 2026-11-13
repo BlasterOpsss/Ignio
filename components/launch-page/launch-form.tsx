@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAccount, useReadContract, useSwitchChain } from 'wagmi'
 import { parseAbi } from 'viem'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,7 @@ import { Loader2 } from 'lucide-react'
 import ConnectWallet from '../ConnectWallet'
 import { TransactionStatus } from './transaction-status'
 import { isImpersonation, RESERVED_MESSAGE } from '@/lib/brand-guard'
+import { makeDefaultImage } from '@/lib/default-image'
 
 interface FormState {
   tokenImage: File | null
@@ -31,7 +32,7 @@ interface FormState {
 
 interface LaunchFormProps {
   onChange?: (formData: FormState) => void
-  initial?: { tokenName?: string; tokenSymbol?: string; description?: string; xLink?: string; telegram?: string; website?: string; creatorTaxPct?: string }
+  initial?: { tokenName?: string; tokenSymbol?: string; description?: string; xLink?: string; telegram?: string; website?: string; creatorTaxPct?: string; tokenImagePreview?: string; logoUri?: string }
 }
 
 export function LaunchForm({ onChange, initial }: LaunchFormProps) {
@@ -41,8 +42,8 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
 
   const [formState, setFormState] = useState<FormState>({
     tokenImage: null,
-    tokenImagePreview: null,
-    logoUri: '',
+    tokenImagePreview: initial?.tokenImagePreview || null,
+    logoUri: initial?.logoUri ?? '',
     tokenName: initial?.tokenName ?? '',
     tokenSymbol: initial?.tokenSymbol ?? '',
     description: initial?.description ?? '',
@@ -54,7 +55,10 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
   })
 
   const [submitMessage, setSubmitMessage] = useState('')
-  const [uploadStatus, setUploadStatus] = useState('')
+  const [uploadStatus, setUploadStatus] = useState(initial?.logoUri ? 'Image uploaded ✓' : '')
+  const stateRef = useRef(formState)
+  stateRef.current = formState
+  const defaultImageRef = useRef<() => void>(() => {})
   const { data: maxTaxBps } = useReadContract({
     address: PONS_V2_FACTORY_ADDRESS,
     abi: parseAbi(['function maxCreatorTaxBps() view returns (uint256)']),
@@ -63,7 +67,7 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
   })
   const maxTaxPct = maxTaxBps !== undefined ? Number(maxTaxBps) / 100 : null
 
-  const uploadToIpfs = async (file: File) => {
+  const uploadToIpfs = async (file: File): Promise<string | null> => {
     setUploadStatus('Uploading image to IPFS…')
     try {
       const body = new FormData()
@@ -71,12 +75,54 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
       const res = await fetch('/api/upload', { method: 'POST', body })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Upload failed')
-      setFormState((s) => ({ ...s, logoUri: json.uri }))
+      const ns = { ...stateRef.current, logoUri: json.uri as string }
+      stateRef.current = ns
+      setFormState(ns)
+      onChange?.(ns)
       setUploadStatus('Image uploaded ✓')
+      return json.uri as string
     } catch (err) {
       setUploadStatus((err instanceof Error ? err.message : 'Upload failed'))
+      return null
     }
   }
+
+  // Fallback image drawn from the ticker, uploaded to IPFS like any other image.
+  const applyDefaultImage = async (): Promise<string | null> => {
+    try {
+      const cur = stateRef.current
+      const file = await makeDefaultImage(cur.tokenSymbol || cur.tokenName)
+      const preview = await new Promise<string>((res, rej) => {
+        const r = new FileReader()
+        r.onload = () => res(String(r.result))
+        r.onerror = () => rej(new Error('Could not read the default image.'))
+        r.readAsDataURL(file)
+      })
+      const ns = { ...stateRef.current, tokenImage: file, tokenImagePreview: preview, logoUri: '' }
+      stateRef.current = ns
+      setFormState(ns)
+      onChange?.(ns)
+      return await uploadToIpfs(file)
+    } catch (err) {
+      setUploadStatus(err instanceof Error ? err.message : 'Could not create a default image.')
+      return null
+    }
+  }
+  defaultImageRef.current = () => { void applyDefaultImage() }
+
+  // Spoken commands from voice mode
+  useEffect(() => {
+    const pick = () => {
+      document.querySelector<HTMLInputElement>('.x-fs-image input[type=file]')?.click()
+    }
+    const makeDefault = () => defaultImageRef.current()
+    window.addEventListener('ignio:pick-image', pick)
+    window.addEventListener('ignio:default-image', makeDefault)
+    return () => {
+      window.removeEventListener('ignio:pick-image', pick)
+      window.removeEventListener('ignio:default-image', makeDefault)
+    }
+  }, [])
 
   const handleImageSelect = (file: File | null) => {
     if (file) {
@@ -87,6 +133,7 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
           tokenImage: file,
           tokenImagePreview: e.target?.result as string,
         }
+        stateRef.current = newState
         setFormState(newState)
         onChange?.(newState)
         void uploadToIpfs(file)
@@ -104,6 +151,22 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
       onChange?.(newState)
     }
   }
+
+  // Voice mode: send form messages and transaction progress to the chat, and launch on command
+  const say = (m: string) => window.dispatchEvent(new CustomEvent('ignio:form-message', { detail: m }))
+  useEffect(() => { if (submitMessage) say(submitMessage) }, [submitMessage])
+  useEffect(() => { if (txHash) say('Transaction sent. Waiting for confirmation…') }, [txHash])
+  useEffect(() => { if (isConfirmed) say('Launched ✓ Your token is live.') }, [isConfirmed])
+  useEffect(() => {
+    const m = error || (receiptError instanceof Error ? receiptError.message : '')
+    if (m) say(m)
+  }, [error, receiptError])
+  const submitRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    const go = () => submitRef.current()
+    window.addEventListener('ignio:launch', go)
+    return () => window.removeEventListener('ignio:launch', go)
+  }, [])
 
   const handleSymbolChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.currentTarget.value.toUpperCase().slice(0, 10)
@@ -151,9 +214,20 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
       return
     }
 
-    if (!formState.logoUri) {
-      setSubmitMessage(uploadStatus.startsWith('Uploading') ? 'Wait for the image upload to finish' : 'Upload a token image first')
-      return
+    let logoUri = formState.logoUri
+    if (!logoUri) {
+      if (uploadStatus.startsWith('Uploading')) {
+        setSubmitMessage('Wait for the image upload to finish')
+        return
+      }
+      setSubmitMessage('No image added, making a default one from your ticker…')
+      const uri = await applyDefaultImage()
+      if (!uri) {
+        setSubmitMessage('Could not make a default image. Add your own image, or check that PINATA_JWT is set.')
+        return
+      }
+      logoUri = uri
+      setSubmitMessage('')
     }
     const pct = Number(formState.creatorTaxPct || '0')
     if (!isFinite(pct) || pct < 0) {
@@ -166,7 +240,7 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
     }
 
     try {
-      const logoUrl = formState.logoUri || ''
+      const logoUrl = logoUri
 
       await launchToken({
         tokenName: formState.tokenName,
@@ -184,6 +258,11 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
     }
   }
 
+  submitRef.current = () => {
+    if (isLoading) return
+    void handleSubmit({ preventDefault() {} } as React.FormEvent)
+  }
+
   return (
     <form id="launch-form" onSubmit={handleSubmit} className="x-lform">
       {/* Token Image */}
@@ -195,6 +274,10 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
           preview={formState.tokenImagePreview || undefined}
         />
         {uploadStatus && <p className="upl">{uploadStatus}</p>}
+        {!formState.tokenImagePreview && (
+          <button type="button" className="x-btn" onClick={() => defaultImageRef.current()} style={{ marginTop: 8 }}>Use a default image</button>
+        )}
+        <p className="sub">No image? A default one is made from your ticker when you deploy.</p>
       </section>
 
       {/* Name, symbol, description */}

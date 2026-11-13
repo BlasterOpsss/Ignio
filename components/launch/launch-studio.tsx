@@ -7,7 +7,7 @@ import { LaunchForm } from '@/components/launch-page/launch-form'
 import { TokenPreview } from '@/components/launch-page/token-preview'
 import { isImpersonation } from '@/lib/brand-guard'
 import { PONS_V2_FACTORY_ADDRESS } from '@/lib/hooks/use-launch-token'
-import { EMPTY_DRAFT, GREETING, understand, type Draft, type Msg } from '@/lib/voice-chat'
+import { CONFIRM, EMPTY_DRAFT, GREETING, understand, type Draft, type Msg } from '@/lib/voice-chat'
 import { useVoice } from '@/lib/use-voice'
 import { robinhoodChain } from '@/lib/wagmi-config'
 
@@ -39,6 +39,8 @@ export default function LaunchStudio() {
   const [msgs, setMsgs] = useState<Msg[]>([{ role: 'ai', text: GREETING }])
   const [input, setInput] = useState('')
   const [interim, setInterim] = useState('')
+  const pendingLaunch = useRef(false)
+  const imgRef = useRef({ tokenImagePreview: '', logoUri: '' })
   const latest = useRef<Draft>(EMPTY_DRAFT) // what the form currently holds, so voice edits build on it
   const msgsRef = useRef<HTMLDivElement>(null)
 
@@ -65,6 +67,18 @@ export default function LaunchStudio() {
     msgsRef.current?.scrollTo({ top: msgsRef.current.scrollHeight })
   }, [msgs, interim])
 
+  // Messages from the form (errors, wallet prompts, transaction progress) show up in the voice chat
+  useEffect(() => {
+    const h = (e: Event) => {
+      let m = String((e as CustomEvent<string>).detail || '')
+      if (!m) return
+      if (/connect your wallet|switch your wallet|switch to robinhood/i.test(m)) m += ' Switch to Normal mode to connect or change network.'
+      setMsgs((x) => [...x, { role: 'ai', text: m }])
+    }
+    window.addEventListener('ignio:form-message', h)
+    return () => window.removeEventListener('ignio:form-message', h)
+  }, [])
+
   function setMode(m: Mode) {
     setModeState(m)
     window.history.replaceState(null, '', m === 'voice' ? '/launch?mode=voice' : '/launch')
@@ -73,14 +87,27 @@ export default function LaunchStudio() {
   function send(text: string) {
     const t = text.trim()
     if (!t) return
+    if (pendingLaunch.current && CONFIRM.test(t)) {
+      pendingLaunch.current = false
+      setMsgs((m) => [...m, { role: 'me', text: t }, { role: 'ai', text: 'Sending to your wallet. Approve the transaction there.' }])
+      window.dispatchEvent(new Event('ignio:launch'))
+      return
+    }
+    pendingLaunch.current = false
     const r = understand(t, latest.current)
-    setMsgs((m) => [...m, { role: 'me', text: t }, { role: 'ai', text: r.reply }])
+    let reply = r.reply
+    if (r.action === 'launch') {
+      pendingLaunch.current = true
+      if (!snap.image) reply += ' No image yet, so a default one will be made from your ticker.'
+    }
+    setMsgs((m) => [...m, { role: 'me', text: t }, { role: 'ai', text: reply }])
     if (JSON.stringify(r.draft) !== JSON.stringify(latest.current)) {
       latest.current = r.draft
       setDraft(r.draft)
       setFormKey((k) => k + 1) // reload the form with the new values
       setSnap(emptySnap(r.draft))
     }
+    if (r.action === 'pick-image' || r.action === 'default-image') window.dispatchEvent(new Event(r.action === 'pick-image' ? 'ignio:pick-image' : 'ignio:default-image'))
     if (r.review) setMode('normal')
   }
 
@@ -118,8 +145,9 @@ export default function LaunchStudio() {
             {ready && (
               <LaunchForm
                 key={formKey}
-                initial={draft}
+                initial={{ ...draft, ...imgRef.current }}
                 onChange={(d) => {
+                  imgRef.current = { tokenImagePreview: d.tokenImagePreview || '', logoUri: d.logoUri || '' }
                   latest.current = {
                     tokenName: d.tokenName, tokenSymbol: d.tokenSymbol, description: d.description,
                     xLink: d.xLink, telegram: d.telegram, website: d.website, creatorTaxPct: d.creatorTaxPct ?? '0',
@@ -183,7 +211,7 @@ export default function LaunchStudio() {
             </ul>
           </div>
           {mode === 'voice' && (
-            <button type="button" className="x-btn big" onClick={() => { send('review') }}>Review &amp; deploy</button>
+            <button type="button" className="x-btn big" onClick={() => { send('launch') }}>Launch</button>
           )}
           <p className="x-fine">Launch fee {feeText} · Creator fee {snap.fee || '0'}% · Your wallet signs the transaction</p>
         </div>

@@ -90,7 +90,7 @@ export function ImageUploader({ onImageSelect, preview }: ImageUploaderProps) {
           <Upload className="mx-auto h-8 w-8 text-primary/70 mb-3" />
           <p className="font-semibold text-foreground mb-1">Drag & drop your token image</p>
           <p className="text-sm text-muted-foreground">or click to select a file</p>
-          <p className="text-xs text-muted-foreground/70 mt-2">PNG, JPG, or GIF (max 10MB)</p>
+          <p className="text-xs text-muted-foreground/70 mt-2">PNG, JPG, or GIF (max 2MB)</p>
         </div>
       )}
     </div>

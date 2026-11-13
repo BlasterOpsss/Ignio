@@ -16,14 +16,32 @@ export const EMPTY_DRAFT: Draft = { tokenName: '', tokenSymbol: '', description:
 export const GREETING =
   'What do you want to create? Say or type something like “Create a rewards token called Spark”.'
 
-const REVIEW = /\b(launch|deploy|review|done|ready|continue|next|finish)\b/i
+const REVIEW = /\b(review|done|ready|continue|next|finish)\b/i
+const LAUNCH = /\b(launch|deploy)\b/i
+export const CONFIRM = /^\s*(?:confirm(?:\s+launch)?|yes|yeah|do it|go ahead|send it)\W*$/i
 
 /**
  * Rule-based conversation: reads what the person said, updates the draft, and answers
  * with what it understood and what is still missing. It never sends a transaction.
  */
-export function understand(text: string, draft: Draft): { draft: Draft; reply: string; review: boolean } {
+const IMG_WORD = /\b(image|picture|photo|logo|pic)\b/i
+const IMG_DEFAULT = /\b(default|generate|auto|automatic|skip|no|without|make one|create one|for me)\b/i
+const IMG_PICK = /\b(add|upload|choose|pick|attach|select|set|use)\b/i
+
+export type VoiceAction = 'pick-image' | 'default-image' | 'launch'
+
+export function understand(text: string, draft: Draft): { draft: Draft; reply: string; review: boolean; action?: VoiceAction } {
   const t = text.trim()
+
+  // Image commands (skipped when the sentence is naming a token, e.g. "called Logo Image")
+  if (!/\b(?:called|named)\b/i.test(t) && IMG_WORD.test(t)) {
+    if (IMG_DEFAULT.test(t)) {
+      return { draft, reply: 'Making a default image from your ticker. You can still replace it before you deploy.', review: false, action: 'default-image' }
+    }
+    if (IMG_PICK.test(t)) {
+      return { draft, reply: 'Opening the image picker. If it does not open, say “review” and tap the image box.', review: false, action: 'pick-image' }
+    }
+  }
   const next: Draft = { ...draft }
   const done: string[] = []
 
@@ -59,6 +77,19 @@ export function understand(text: string, draft: Draft): { draft: Draft; reply: s
   // 3) creator fee
   const fee = t.match(/(\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:creator\s*)?fee|creator\s*fee\s*(?:of|to|is)?\s*(\d+(?:\.\d+)?)/i)
   if (fee) { next.creatorTaxPct = fee[1] ?? fee[2]; done.push(`creator fee ${next.creatorTaxPct}%`) }
+
+  // Direct launch: ask for a spoken confirmation, then the form sends the transaction to the wallet.
+  if (LAUNCH.test(t)) {
+    if (!next.tokenName) {
+      return { draft: next, reply: 'I need a name first. Try “Create a fan token called Comet”.', review: false }
+    }
+    return {
+      draft: next,
+      reply: `Ready to launch ${next.tokenName} (${next.tokenSymbol}) with a ${next.creatorTaxPct || '0'}% creator fee. Say “confirm” and your wallet will open to sign.`,
+      review: false,
+      action: 'launch',
+    }
+  }
 
   const wantsReview = REVIEW.test(t)
 
