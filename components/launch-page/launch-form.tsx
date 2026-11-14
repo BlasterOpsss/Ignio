@@ -155,6 +155,11 @@ export function LaunchForm({ onChange, initial }: LaunchFormProps) {
   // Voice mode: send form messages and transaction progress to the chat, and launch on command
   const say = (m: string) => window.dispatchEvent(new CustomEvent('ignio:form-message', { detail: m }))
   useEffect(() => { if (submitMessage) say(submitMessage) }, [submitMessage])
+  const firstStatus = useRef(true)
+  useEffect(() => {
+    if (firstStatus.current) { firstStatus.current = false; return }
+    if (uploadStatus) say(uploadStatus)
+  }, [uploadStatus])
   useEffect(() => { if (txHash) say('Transaction sent. Waiting for confirmation…') }, [txHash])
   useEffect(() => { if (isConfirmed) say('Launched ✓ Your token is live.') }, [isConfirmed])
   useEffect(() => {

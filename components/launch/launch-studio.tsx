@@ -21,6 +21,9 @@ const emptySnap = (d: Draft): Snap => ({ image: '', name: d.tokenName, symbol: d
 const MicIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
 )
+const StopIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+)
 const DocIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l5 5v13H6z" /><path d="M14 3v5h5M9 13h7M9 17h7" /></svg>
 )
@@ -40,6 +43,8 @@ export default function LaunchStudio() {
   const [input, setInput] = useState('')
   const [interim, setInterim] = useState('')
   const pendingLaunch = useRef(false)
+  const interimRef = useRef('')
+  const skipUntil = useRef(0)
   const imgRef = useRef({ tokenImagePreview: '', logoUri: '' })
   const latest = useRef<Draft>(EMPTY_DRAFT) // what the form currently holds, so voice edits build on it
   const msgsRef = useRef<HTMLDivElement>(null)
@@ -113,12 +118,30 @@ export default function LaunchStudio() {
 
   const voice = useVoice((text, isFinal) => {
     if (isFinal) {
+      interimRef.current = ''
       setInterim('')
+      if (Date.now() < skipUntil.current) return // already sent by Stop
       send(text)
     } else {
+      interimRef.current = text
       setInterim(text)
     }
-  })
+  }, { continuous: true })
+
+  // Tapping the mic while listening stops it and sends whatever you just said
+  function micClick() {
+    if (voice.listening) {
+      const pending = interimRef.current.trim()
+      interimRef.current = ''
+      setInterim('')
+      if (pending) skipUntil.current = Date.now() + 1500
+      voice.toggle()
+      if (pending) send(pending)
+    } else {
+      skipUntil.current = 0
+      voice.toggle()
+    }
+  }
 
   const checks: [string, boolean][] = [
     ['Name allowed', snap.name.trim() !== '' && !isImpersonation(snap.name, snap.symbol)],
@@ -161,12 +184,20 @@ export default function LaunchStudio() {
           {mode === 'voice' && (
             <div className="x-convo">
               <div className="top">
-                <span className={`x-live${voice.listening ? '' : ' idle'}`}>{voice.listening ? 'Listening…' : 'Tap the mic to talk'}</span>
+                <span className={`x-live${voice.listening ? '' : ' idle'}`}>{voice.listening ? 'Listening… tap stop to send' : 'Tap the mic to talk'}</span>
                 <span className="x-tag" style={{ background: 'rgba(255,255,255,.1)', color: '#bbb' }}>Voice mode</span>
               </div>
               <div className="x-msgs" ref={msgsRef} aria-live="polite">
                 {msgs.map((m, i) => <p key={i} className={m.role}>{m.text}</p>)}
                 {interim && <p className="me ghost">{interim}…</p>}
+              </div>
+              <div className="x-imgrow">
+                <button type="button" onClick={() => window.dispatchEvent(new Event('ignio:pick-image'))}>{snap.image ? 'Change image' : 'Add image'}</button>
+                <button type="button" onClick={() => window.dispatchEvent(new Event('ignio:default-image'))}>Default image</button>
+                {snap.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={snap.image} alt="Token" />
+                )}
               </div>
               <form
                 className="x-dock"
@@ -180,8 +211,8 @@ export default function LaunchStudio() {
                   {WAVE.map((h, n) => <i key={n} style={{ height: h, animationDelay: `${n * 70}ms` }} />)}
                 </div>
                 <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Or type your message…" aria-label="Type your message" />
-                <button type="button" className={`x-mic${voice.listening ? ' on' : ''}`} onClick={voice.toggle} aria-pressed={voice.listening} aria-label={voice.listening ? 'Stop listening' : 'Start voice input'}>
-                  <MicIcon />
+                <button type="button" className={`x-mic${voice.listening ? ' on' : ''}`} onClick={micClick} aria-pressed={voice.listening} aria-label={voice.listening ? 'Stop and send' : 'Start voice input'}>
+                  {voice.listening ? <StopIcon /> : <MicIcon />}
                 </button>
               </form>
               {voice.error && <p className="x-err" role="alert">{voice.error}</p>}

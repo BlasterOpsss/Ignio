@@ -16,7 +16,7 @@ export const EMPTY_DRAFT: Draft = { tokenName: '', tokenSymbol: '', description:
 export const GREETING =
   'What do you want to create? Say or type something like “Create a rewards token called Spark”.'
 
-const REVIEW = /\b(review|done|ready|continue|next|finish)\b/i
+const REVIEW = /\b(review|reviews|reviewed|re-view|preview|revue|resume|resumes|open (?:the )?form|done|ready|continue|next|finish)\b/i
 const LAUNCH = /\b(launch|deploy)\b/i
 export const CONFIRM = /^\s*(?:confirm(?:\s+launch)?|yes|yeah|do it|go ahead|send it)\W*$/i
 
@@ -39,7 +39,7 @@ export function understand(text: string, draft: Draft): { draft: Draft; reply: s
       return { draft, reply: 'Making a default image from your ticker. You can still replace it before you deploy.', review: false, action: 'default-image' }
     }
     if (IMG_PICK.test(t)) {
-      return { draft, reply: 'Opening the image picker. If it does not open, say “review” and tap the image box.', review: false, action: 'pick-image' }
+      return { draft, reply: 'Opening the image picker. If it does not open, tap “Add image” below.', review: false, action: 'pick-image' }
     }
   }
   const next: Draft = { ...draft }
